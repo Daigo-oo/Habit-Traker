@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Habit Tracker · Abril</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #0b0f19;
+            background-image: radial-gradient(circle at 1px 1px, #151b2b 1px, transparent 0);
+            background-size: 32px 32px;
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .card {
+            background: #111827;
+            border: 1px solid #1e293b;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #111827; border-radius: 4px;}
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Checkbox de hábitos Animado */
+        .hchk {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #334155;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            margin: 0 auto;
+            user-select: none;
+            -webkit-user-select: none;
+            background: #1a2235;
+        }
+        .hchk:hover { 
+            border-color: #4ade80; 
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34,197,94,0.15); 
+        }
+        .hchk:active { transform: scale(0.85); }
+        .hchk.on {
+            background: #22c55e;
+            border-color: #22c55e;
+            animation: popCheck 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            box-shadow: 0 0 12px rgba(34,197,94,0.4);
+        }
+        .hchk.on::after {
+            content: '✓';
+            color: #fff; font-size: 14px; font-weight: 700; line-height: 1;
+            opacity: 0;
+            animation: fadeIn 0.2s 0.1s ease forwards;
+        }
+
+        @keyframes popCheck {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+        @keyframes fadeIn { to { opacity: 1; } }
+
+        /* Inputs mood */
+        .minp {
+            width: 32px;
+            height: 28px;
+            background: #1a2235; border: 1px solid #334155; border-radius: 6px;
+            color: #e2e8f0; text-align: center; font-size: 12px; font-weight: 600;
+            font-family: 'Space Grotesk', sans-serif;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        .minp:focus { 
+            border-color: #22c55e; 
+            background: #111827;
+            box-shadow: 0 0 0 3px rgba(34,197,94,0.2); 
+            transform: translateY(-1px);
+        }
+        .minp::-webkit-inner-spin-button,
+        .minp::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .minp { -moz-appearance: textfield; }
+
+        /* Tablas */
+        .htbl, .mtbl { border-collapse: separate; border-spacing: 0; width: max-content; }
+        .htbl td, .mtbl td { padding: 4px; text-align: center; font-size: 12px; }
+
+        /* Semana header */
+        .week-hdr {
+            text-align: center; font-weight: 700; font-size: 11px;
+            color: #a5b4fc; background: rgba(15,23,42,0.8); backdrop-filter: blur(4px);
+            letter-spacing: 0.05em; padding: 6px 0 !important; 
+            border-bottom: 1px solid #1e293b; text-transform: uppercase;
+        }
+
+        .hname, .mlbl {
+            text-align: left !important; white-space: nowrap;
+            padding: 6px 10px !important; font-size: 13px; color: #cbd5e1;
+            position: sticky; left: 0; background: #111827; z-index: 3;
+            border-right: 1px solid #1e293b; font-weight: 500;
+        }
+        .hname { min-width: 185px; }
+        .mlbl { min-width: 110px; }
+        
+        .dnum { color: #94a3b8; font-weight: 700; font-size: 12px; padding: 4px 4px 0 !important; }
+        .dhdr, .mdh {
+            color: #64748b; font-weight: 600; font-size: 10px;
+            text-transform: uppercase; padding: 2px 4px 4px !important;
+            border-bottom: 1px solid #1e293b;
+        }
+        .wsep { border-left: 2px dashed #334155 !important; }
+
+        /* Barra de progreso animada */
+        .pbarbg { width: 100%; min-width: 80px; height: 10px; background: #1e293b; border-radius: 6px; overflow: hidden; position: relative;}
+        .pbarfill { 
+            height: 100%; 
+            background: linear-gradient(90deg, #22c55e, #4ade80); 
+            border-radius: 6px; 
+            transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1); 
+            position: relative;
+        }
+        .pbarfill::after {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transform: translateX(-100%); animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+
+        /* Top 10 */
+        .t10i { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #1e293b; font-size: 13px; transition: background 0.2s; border-radius: 6px; padding-inline: 4px;}
+        .t10i:hover { background: rgba(30,41,59,0.5); }
+        .t10i:last-child { border-bottom: none; }
+        .t10r {
+            width: 26px; height: 26px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700; flex-shrink: 0;
+        }
+
+        /* Stat */
+        .sv { font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em;}
+        .sl { font-size: 12px; color: #64748b; margin-top: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em;}
+
+        /* Modal */
+        .modalov {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px); z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 1; transition: opacity 0.3s ease;
+        }
+        .modalov.hidden { opacity: 0; pointer-events: none; }
+        .modal-content {
+            background: #111827; border: 1px solid #1e293b; border-radius: 20px; 
+            padding: 30px; max-width: 400px; width: 90%; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);
+            transform: scale(1) translateY(0); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modalov.hidden .modal-content { transform: scale(0.95) translateY(20px); }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 30px; right: 30px;
+            padding: 14px 24px; border-radius: 12px; font-size: 14px; font-weight: 600;
+            z-index: 200; pointer-events: none;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+            animation: fadeSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Card Entrada Fluida */
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(30px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .cin { animation: cardIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+        /* Layout */
+        .dash { display: grid; grid-template-columns: 1fr 400px; gap: 20px; padding: 24px; max-width: 1600px; margin: 0 auto; }
+        
+        /* Botones */
+        .btn {
+            padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid;
+            font-family: 'Space Grotesk', sans-serif; background: transparent;
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn-r { color: #f87171; border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.1); }
+        .btn-r:hover { background: rgba(248,113,113,0.2); box-shadow: 0 0 12px rgba(248,113,113,0.2); }
+        .btn-g { color: #22c55e; border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.1); }
+        .btn-g:hover { background: rgba(34,197,94,0.2); box-shadow: 0 0 12px rgba(34,197,94,0.2); }
+        .btn-b { color: #38bdf8; border-color: rgba(56,189,248,0.4); background: rgba(56,189,248,0.1); }
+        .btn-b:hover { background: rgba(56,189,248,0.2); box-shadow: 0 0 12px rgba(56,189,248,0.2); }
+
+        /* Select / Input genérico */
+        .cinput {
+            width: 100%; background: #1a2235; border: 1px solid #334155;
+            border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 500;
+            color: #e2e8f0; outline: none; font-family: 'Space Grotesk', sans-serif;
+            transition: all 0.2s; cursor: pointer;
+        }
+        .cinput:focus { border-color: #22c55e; box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+
+        /* ===== ADAPTACIÓN PARA MÓVILES (Responsivo) ===== */
+        @media (max-width: 1100px) { 
+            .dash { grid-template-columns: 1fr; } 
+        }
+        @media (max-width: 600px) {
+            header { flex-direction: column; align-items: stretch !important; padding: 16px; gap: 16px !important; text-align: center;}
+            .header-actions { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+            .header-actions .btn-r { grid-column: span 2; } /* El reset ocupa toda la línea para evitar toques accidentales */
+            
+            .dash { padding: 12px; gap: 16px; }
+            .card { padding: 16px; border-radius: 12px;}
+            
+            /* Hacer touch targets más grandes */
+            .hchk { width: 30px; height: 30px; border-radius: 8px; }
+            .hchk.on::after { font-size: 16px; }
+            .minp { width: 40px; height: 36px; font-size: 14px; }
+            
+            /* Ajustar textos de tabla para móvil */
+            .hname { min-width: 150px; font-size: 12px; padding: 8px !important;}
+            .htbl td, .mtbl td { padding: 6px 4px; }
+            .sv { font-size: 24px; }
+            
+            /* Los gráficos necesitan mantener legibilidad */
+            #cDaily, #cWeekly, #cMental { min-height: 180px; }
+        }
+    </style>
+</head>
+<body>
+
+<header style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:16px 24px; border-bottom:1px solid #1e293b; background: rgba(17, 24, 39, 0.8); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 50;">
+    <h1 style="font-size:22px; font-weight:700; letter-spacing:0.05em; display:flex; align-items:center; gap: 8px; margin: 0 auto 0 0;">
+        <span style="color:#22c55e;">TRACKER</span>
+        <span style="color:#334155;">/</span>
+        <span id="hMonth" style="color:#f8fafc;"></span>
+    </h1>
+    <div class="header-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-g" id="bExport">⬇ Exportar</button>
+        <button class="btn btn-b" id="bImport">⬆ Importar</button>
+        <button class="btn btn-r" id="bReset">↻ Reset</button>
+        <input type="file" id="fInput" accept=".csv" style="display:none;">
+    </div>
+</header>
+
+<main class="dash">
+    <div style="display:flex; flex-direction:column; gap:20px; min-width:0;">
+        <div class="card cin" style="animation-delay:0.05s">
+            <h2 style="font-size:14px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">Mis Hábitos</h2>
+            <div style="overflow-x:auto; border-radius: 8px; border: 1px solid #1e293b;" id="hGrid"></div>
+        </div>
+        <div class="card cin" style="animation-delay:0.1s">
+            <h2 style="font-size:14px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">Progreso Diario</h2>
+            <div style="height:190px; width: 100%;"><canvas id="cDaily"></canvas></div>
+        </div>
+        <div class="card cin" style="animation-delay:0.15s">
+            <h2 style="font-size:14px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">Progreso Semanal</h2>
+            <div style="height:160px; width: 100%;"><canvas id="cWeekly"></canvas></div>
+        </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:20px; min-width:0;">
+        <div class="card cin" style="animation-delay:0.05s">
+            <div style="display:flex; gap:16px;">
+                <div style="flex:1;">
+                    <label style="display:block; font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Año</label>
+                    <input type="number" id="iYear" min="2020" max="2100" class="cinput">
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px;">Mes</label>
+                    <select id="iMonth" class="cinput"></select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card cin" style="animation-delay:0.1s">
+            <h2 style="font-size:14px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:16px;">Resumen Mensual</h2>
+            <div style="display:flex; align-items:center; gap:24px;">
+                <div style="flex:1; display:flex; flex-direction:column; gap:16px;">
+                    <div><div class="sv" style="color:#e2e8f0;" id="sM">0</div><div class="sl">Meta Total</div></div>
+                    <div><div class="sv" style="color:#22c55e;" id="sC">0</div><div class="sl">Completados</div></div>
+                    <div><div class="sv" style="color:#f87171;" id="sL">0</div><div class="sl">Faltantes</div></div>
+                </div>
+                <div style="width:140px; height:140px; flex-shrink:0; position:relative;"><canvas id="cDonut"></canvas></div>
+            </div>
+        </div>
+
+        <div class="card cin" style="animation-delay:0.15s; overflow-x:auto;">
+            <h2 style="font-size:14px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">Ánimo & Motivación (1-10)</h2>
+            <div id="mTbl" style="border-radius: 8px; border: 1px solid #1e293b; overflow: hidden;"></div>
+        </div>
+
+        <div class="card cin" style="animation-delay:0.2s">
+            <h2 style="font-size:14px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">Tendencia Mental</h2>
+            <div style="height:200px; width: 100%;"><canvas id="cMental"></canvas></div>
+        </div>
+
+        <div class="card cin" style="animation-delay:0.25s; overflow-x:auto;">
+            <h2 style="font-size:14px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">Desglose por Hábito</h2>
+            <div id="anBox"></div>
+        </div>
+
+        <div class="card cin" style="animation-delay:0.3s">
+            <h2 style="font-size:14px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">Mejores Hábitos</h2>
+            <div id="t10Box"></div>
+        </div>
+    </div>
+</main>
+
+<div id="rModal" class="modalov hidden">
+    <div class="modal-content">
+        <h3 style="font-size:20px; font-weight:700; color:#fff; margin-bottom:12px;">¿Resetear Mes?</h3>
+        <p style="font-size:14px; color:#94a3b8; margin-bottom:24px; line-height:1.6;">
+            Se borrarán permanentemente todos los datos de <b>hábitos, ánimo y motivación</b> del mes actual. Esta acción no se puede deshacer.
+        </p>
+        <div style="display:flex; gap:12px; justify-content:flex-end;">
+            <button class="btn" id="rNo" style="color:#cbd5e1; border-color:#334155; background:#1e293b; flex:1;">Cancelar</button>
+            <button class="btn" id="rYes" style="color:#fff; border-color:#dc2626; background:#dc2626; flex:1;">Sí, borrar todo</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const HABITS = [
+    { n: 'Wake up at 05:30', e: '🕒' },
+    { n: 'Read the bible',    e: '📙' },
+    { n: 'GYM',               e: '🏋️' },
+    { n: 'Shower',            e: '💦' },
+    { n: 'Go to school',      e: '💼' },
+    { n: 'Homework',          e: '📖' },
+    { n: 'Learn a skill',     e: '✅' },
+    { n: 'No sugar',          e: '🍭' },
+    { n: 'No fat',            e: '🍕' },
+    { n: '1H social media',   e: '📱' },
+    { n: 'Planning',          e: '📝' },
+    { n: 'Sleep before 11:00',e: '🌙' }
+];
+
+const MES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const DIAS = ['Do','Lu','Ma','Mi','Ju','Vi','Sa']; // Corregido orden estándar de JS (0=Dom, 6=Sab)
+
+const S = { year: new Date().getFullYear(), month: new Date().getMonth(), data: null };
+let chD, chW, chDon, chM;
+let gradGreen, gradAmber;
+
+function dim(y, m) { return new Date(y, m + 1, 0).getDate(); }
+
+function calWeeks(y, m) {
+    const d = dim(y, m);
+    // JS getDay() 0 es Domingo. Adaptamos visualmente.
+    let off = new Date(y, m, 1).getDay();
+    if(off === 0) off = 7; // Si queremos que empiece en lunes descomentar. Dejaremos nativo por ahora
+    const wks = [];
+    let wk = Array(7).fill(null);
+    let n = 1;
+    for (let i = off; i < 7 && n <= d; i++) { wk[i] = n++; }
+    wks.push(wk);
+    while (n <= d) {
+        wk = Array(7).fill(null);
+        for (let i = 0; i < 7 && n <= d; i++) { wk[i] = n++; }
+        wks.push(wk);
+    }
+    return { wks, d };
+}
+
+function sKey(y, m) { return 'ht_' + y + '_' + m; }
+
+function defData(days) {
+    return {
+        h: HABITS.map(() => new Array(days).fill(false)),
+        m: new Array(days).fill(0),
+        mo: new Array(days).fill(0)
+    };
+}
+
+function load() {
+    const d = dim(S.year, S.month);
+    const raw = localStorage.getItem(sKey(S.year, S.month));
+    if (raw) {
+        try {
+            const p = JSON.parse(raw);
+            const dd = defData(d);
+            if (p.h) p.h.forEach((a, i) => { for (let j = 0; j < d; j++) dd.h[i][j] = !!a[j]; });
+            if (p.m) for (let j = 0; j < d; j++) dd.m[j] = clamp(parseInt(p.m[j]) || 0, 0, 10);
+            if (p.mo) for (let j = 0; j < d; j++) dd.mo[j] = clamp(parseInt(p.mo[j]) || 0, 0, 10);
+            S.data = dd;
+            return;
+        } catch(e) {}
+    }
+    S.data = defData(d);
+}
+
+function save() { localStorage.setItem(sKey(S.year, S.month), JSON.stringify(S.data)); }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function rGrid() {
+    const { wks } = calWeeks(S.year, S.month);
+    let h = '<table class="htbl" style="width:100%;">';
+
+    h += '<tr><td class="hname"></td>';
+    wks.forEach((wk, wi) => {
+        h += '<td class="week-hdr' + (wi > 0 ? ' wsep' : '') + '" colspan="7">Semana ' + (wi+1) + '</td>';
+    });
+    h += '</tr><tr><td class="hname"></td>';
+    wks.forEach((wk, wi) => wk.forEach((day, di) => {
+        h += '<td class="dnum' + (di === 0 && wi > 0 ? ' wsep' : '') + '">' + (day !== null ? day : '') + '</td>';
+    }));
+    h += '</tr><tr><td class="hname"></td>';
+    wks.forEach((wk, wi) => wk.forEach((day, di) => {
+        h += '<td class="dhdr' + (di === 0 && wi > 0 ? ' wsep' : '') + '">' + DIAS[di] + '</td>';
+    }));
+    h += '</tr>';
+
+    HABITS.forEach((hb, hi) => {
+        h += '<tr><td class="hname">' + hb.e + ' ' + hb.n + '</td>';
+        wks.forEach((wk, wi) => wk.forEach((day, di) => {
+            if (day !== null) {
+                const on = S.data.h[hi][day - 1];
+                h += '<td class="' + (di === 0 && wi > 0 ? 'wsep' : '') + '">';
+                h += '<div class="hchk' + (on ? ' on' : '') + '" data-h="' + hi + '" data-d="' + day + '"></div></td>';
+            } else {
+                h += '<td class="' + (di === 0 && wi > 0 ? 'wsep' : '') + '"></td>';
+            }
+        }));
+        h += '</tr>';
+    });
+    h += '</table>';
+    document.getElementById('hGrid').innerHTML = h;
+}
+
+function rMood() {
+    const d = dim(S.year, S.month);
+    let h = '<table class="mtbl" style="width:100%;">';
+    h += '<tr><td class="mlbl"></td>';
+    for (let i = 1; i <= d; i++) h += '<td class="mdh">' + i + '</td>';
+    h += '</tr><tr><td class="mlbl" style="color:#22c55e;">Ánimo</td>';
+    for (let i = 0; i < d; i++) {
+        h += '<td><input type="number" min="0" max="10" class="minp" data-t="m" data-i="' + i + '" value="' + (S.data.m[i]||'') + '"></td>';
+    }
+    h += '</tr><tr><td class="mlbl" style="color:#f59e0b;">Motivación</td>';
+    for (let i = 0; i < d; i++) {
+        h += '<td><input type="number" min="0" max="10" class="minp" data-t="mo" data-i="' + i + '" value="' + (S.data.mo[i]||'') + '"></td>';
+    }
+    h += '</tr></table>';
+    document.getElementById('mTbl').innerHTML = h;
+}
+
+function rAnalysis() {
+    const d = dim(S.year, S.month);
+    let h = '<table style="width:100%; font-size:13px; border-collapse:collapse;">';
+    h += '<thead><tr style="color:#64748b; border-bottom:1px solid #1e293b; text-transform:uppercase; font-size:10px; letter-spacing:0.05em;">';
+    h += '<th style="text-align:left; padding:8px 6px 8px 0;">Hábito</th>';
+    h += '<th style="padding:8px 4px; width:45px;">Meta</th>';
+    h += '<th style="padding:8px 4px; width:45px;">Act.</th>';
+    h += '<th style="padding:8px 4px; width:100px;">Progreso</th>';
+    h += '<th style="padding:8px 4px 8px 0; width:45px; text-align:right;">%</th>';
+    h += '</tr></thead><tbody>';
+    HABITS.forEach((hb, i) => {
+        const act = S.data.h[i].filter(Boolean).length;
+        const pct = d > 0 ? Math.round(act / d * 100) : 0;
+        h += '<tr style="border-bottom:1px solid rgba(30,41,59,0.5); transition:background 0.2s;" onmouseover="this.style.background=\'rgba(30,41,59,0.3)\'" onmouseout="this.style.background=\'transparent\'">';
+        h += '<td style="padding:10px 6px 10px 0; color:#cbd5e1; font-weight:500; white-space:nowrap;">' + hb.e + ' ' + hb.n + '</td>';
+        h += '<td style="padding:10px 4px; color:#64748b;">' + d + '</td>';
+        h += '<td style="padding:10px 4px; color:#22c55e; font-weight:700;">' + act + '</td>';
+        h += '<td style="padding:10px 4px;"><div class="pbarbg"><div class="pbarfill" style="width:' + pct + '%"></div></div></td>';
+        h += '<td style="padding:10px 4px 10px 0; text-align:right; color:#e2e8f0; font-weight:700;">' + pct + '%</td>';
+        h += '</tr>';
+    });
+    h += '</tbody></table>';
+    document.getElementById('anBox').innerHTML = h;
+}
+
+function rTop10() {
+    const d = dim(S.year, S.month);
+    const arr = HABITS.map((hb, i) => ({
+        n: hb.n, e: hb.e, p: d > 0 ? Math.round(S.data.h[i].filter(Boolean).length / d * 100) : 0
+    })).sort((a, b) => b.p - a.p).slice(0, 10);
+    const cols = ['#22c55e','#4ade80','#86efac','#f59e0b','#fbbf24','#fcd34d','#94a3b8','#64748b','#475569','#334155'];
+    let h = '';
+    arr.forEach((it, i) => {
+        h += '<div class="t10i">';
+        h += '<span class="t10r" style="background:' + cols[i] + '20; color:' + cols[i] + ';">' + (i + 1) + '</span>';
+        h += '<span style="flex:1; color:#cbd5e1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;">' + it.e + ' ' + it.n + '</span>';
+        h += '<span style="font-size:14px; font-weight:700; color:' + cols[i] + ';">' + it.p + '%</span>';
+        h += '</div>';
+    });
+    document.getElementById('t10Box').innerHTML = h;
+}
+
+function rStats() {
+    const d = dim(S.year, S.month);
+    const meta = HABITS.length * d;
+    const comp = S.data.h.reduce((s, a) => s + a.filter(Boolean).length, 0);
+    const pct = meta > 0 ? Math.round(comp / meta * 100) : 0;
+    
+    // Animación simple de números
+    animateValue(document.getElementById('sM'), parseInt(document.getElementById('sM').textContent)||0, meta, 500);
+    animateValue(document.getElementById('sC'), parseInt(document.getElementById('sC').textContent)||0, comp, 500);
+    animateValue(document.getElementById('sL'), parseInt(document.getElementById('sL').textContent)||0, meta - comp, 500);
+    
+    return pct;
+}
+
+function animateValue(obj, start, end, duration) {
+    if(start === end) return;
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        obj.innerHTML = Math.floor(progress * (end - start) + start);
+        if (progress < 1) window.requestAnimationFrame(step);
+    };
+    window.requestAnimationFrame(step);
+}
+
+// ================================================================
+// CHART.JS MEJORADO (Con Animaciones)
+// ================================================================
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(30,41,59,0.6)';
+Chart.defaults.font.family = "'Space Grotesk', sans-serif";
+Chart.defaults.font.size = 11;
+
+const ctPlugin = {
+    id: 'ctTxt',
+    afterDraw(chart) {
+        const t = chart.options?.plugins?.ctTxt?.text;
+        if (!t) return;
+        const { ctx, chartArea: { top, bottom, left, right } } = chart;
+        if (!left && left !== 0) return;
+        ctx.save();
+        ctx.font = "bold 26px 'Space Grotesk'";
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(t, (left + right) / 2, (top + bottom) / 2 + 2);
+        ctx.restore();
+    }
+};
+Chart.register(ctPlugin);
+
+const chartAnimParams = { duration: 1000, easing: 'easeOutQuart' };
+
+function mkDaily() {
+    const d = dim(S.year, S.month);
+    const labels = Array.from({ length: d }, (_, i) => i + 1);
+    const data = calcDailyData(d);
+    const ctx = document.getElementById('cDaily').getContext('2d');
+    
+    const gradientOk = ctx.createLinearGradient(0, 0, 0, 200);
+    gradientOk.addColorStop(0, '#4ade80'); gradientOk.addColorStop(1, '#22c55e');
+    const gradientMid = ctx.createLinearGradient(0, 0, 0, 200);
+    gradientMid.addColorStop(0, 'rgba(74,222,128,0.6)'); gradientMid.addColorStop(1, 'rgba(34,197,94,0.3)');
+
+    chD = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Completados', data,
+                backgroundColor: data.map(v => v === HABITS.length ? gradientOk : gradientMid),
+                borderRadius: 4, maxBarThickness: 14
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, max: HABITS.length, ticks: { stepSize: 3 } },
+                x: { grid: { display: false } }
+            },
+            animation: chartAnimParams
+        }
+    });
+}
+
+function mkWeekly() {
+    const { wks } = calWeeks(S.year, S.month);
+    const labels = wks.map((_, i) => 'S' + (i + 1));
+    const data = calcWeeklyData(wks);
+    const maxes = wks.map(w => w.filter(x => x !== null).length * HABITS.length);
+    const ctx = document.getElementById('cWeekly').getContext('2d');
+    chW = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Completados', data,
+                backgroundColor: data.map((v, i) => v >= maxes[i] ? '#22c55e' : 'rgba(34,197,94,0.5)'),
+                borderRadius: 6, maxBarThickness: 45
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true }, x: { grid: { display: false } } },
+            animation: chartAnimParams
+        }
+    });
+}
+
+function mkDonut(pct) {
+    const ctx = document.getElementById('cDonut').getContext('2d');
+    chDon = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completados', 'Restantes'],
+            datasets: [{
+                data: [pct, 100 - pct],
+                backgroundColor: ['#22c55e', '#1e293b'],
+                borderWidth: 0, cutout: '75%',
+                borderRadius: [10, 0]
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false }, ctTxt: { text: pct + '%' } },
+            animation: { animateScale: true, animateRotate: true, duration: 1200, easing: 'easeOutQuart' }
+        }
+    });
+}
+
+function mkMental() {
+    const d = dim(S.year, S.month);
+    const labels = Array.from({ length: d }, (_, i) => i + 1);
+    const ctx = document.getElementById('cMental').getContext('2d');
+    
+    if (!gradGreen) {
+        gradGreen = ctx.createLinearGradient(0, 0, 0, 200);
+        gradGreen.addColorStop(0, 'rgba(34,197,94,0.4)');
+        gradGreen.addColorStop(1, 'rgba(34,197,94,0.0)');
+        gradAmber = ctx.createLinearGradient(0, 0, 0, 200);
+        gradAmber.addColorStop(0, 'rgba(245,158,11,0.4)');
+        gradAmber.addColorStop(1, 'rgba(245,158,11,0.0)');
+    }
+
+    chM = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Ánimo', data: [...S.data.m],
+                    borderColor: '#4ade80', backgroundColor: gradGreen,
+                    fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 6,
+                    pointBackgroundColor: '#111827', pointBorderColor: '#4ade80', borderWidth: 3
+                },
+                {
+                    label: 'Motivación', data: [...S.data.mo],
+                    borderColor: '#fbbf24', backgroundColor: gradAmber,
+                    fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 6,
+                    pointBackgroundColor: '#111827', pointBorderColor: '#fbbf24', borderWidth: 3
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', align: 'end', labels: { boxWidth: 12, usePointStyle: true, padding: 16 } } },
+            scales: {
+                y: { beginAtZero: true, max: 10, ticks: { stepSize: 2 } },
+                x: { grid: { display: false } }
+            },
+            interaction: { mode: 'index', intersect: false },
+            animation: chartAnimParams
+        }
+    });
+}
+
+function calcDailyData(d) { return Array.from({ length: d }, (_, day) => { let c = 0; HABITS.forEach((_, h) => { if (S.data.h[h][day]) c++; }); return c; }); }
+function calcWeeklyData(wks) { return wks.map(wk => { let c = 0; wk.forEach(day => { if (day !== null) HABITS.forEach((_, h) => { if (S.data.h[h][day - 1]) c++; }); }); return c; }); }
+
+function uCharts(pct) {
+    const d = dim(S.year, S.month);
+    const labels = Array.from({ length: d }, (_, i) => i + 1);
+    const { wks } = calWeeks(S.year, S.month);
+
+    if (chD) {
+        const dd = calcDailyData(d);
+        chD.data.labels = labels;
+        chD.data.datasets[0].data = dd;
+        chD.data.datasets[0].backgroundColor = dd.map(v => v === HABITS.length ? '#4ade80' : 'rgba(34,197,94,0.5)');
+        chD.update();
+    }
+    if (chW) {
+        const wd = calcWeeklyData(wks);
+        const maxes = wks.map(w => w.filter(x => x !== null).length * HABITS.length);
+        chW.data.labels = wks.map((_, i) => 'S' + (i + 1));
+        chW.data.datasets[0].data = wd;
+        chW.data.datasets[0].backgroundColor = wd.map((v, i) => v >= maxes[i] ? '#22c55e' : 'rgba(34,197,94,0.5)');
+        chW.update();
+    }
+    if (chDon) {
+        chDon.data.datasets[0].data = [pct, 100 - pct];
+        chDon.options.plugins.ctTxt.text = pct + '%';
+        chDon.update();
+    }
+    if (chM) {
+        chM.data.labels = labels;
+        chM.data.datasets[0].data = [...S.data.m];
+        chM.data.datasets[1].data = [...S.data.mo];
+        chM.update();
+    }
+}
+
+function uFast() { const pct = rStats(); uCharts(pct); rAnalysis(); rTop10(); }
+
+function rAll() {
+    save();
+    document.getElementById('hMonth').textContent = MES[S.month];
+    document.getElementById('iYear').value = S.year;
+    document.getElementById('iMonth').value = S.month;
+    load(); rGrid(); rMood();
+
+    if (chD) { chD.destroy(); chD = null; }
+    if (chW) { chW.destroy(); chW = null; }
+    if (chDon) { chDon.destroy(); chDon = null; }
+    if (chM) { chM.destroy(); chM = null; }
+    gradGreen = null; gradAmber = null;
+
+    const pct = rStats();
+    mkDaily(); mkWeekly(); mkDonut(pct); mkMental();
+    rAnalysis(); rTop10();
+}
+
+function initEvents() {
+    document.getElementById('hGrid').addEventListener('click', function(e) {
+        const el = e.target.closest('.hchk');
+        if (!el) return;
+        const hi = parseInt(el.dataset.h); const di = parseInt(el.dataset.d);
+        if (isNaN(hi) || isNaN(di)) return;
+        S.data.h[hi][di - 1] = !S.data.h[hi][di - 1];
+        
+        // Reiniciar animación quitando y reponiendo clase
+        el.classList.remove('on');
+        void el.offsetWidth; // trigger reflow
+        if(S.data.h[hi][di - 1]) el.classList.add('on');
+        
+        save(); uFast();
+    });
+    document.getElementById('mTbl').addEventListener('input', function(e) {
+        if (!e.target.classList.contains('minp')) return;
+        const t = e.target.dataset.t; const i = parseInt(e.target.dataset.i);
+        if (isNaN(i)) return;
+        let v = parseInt(e.target.value);
+        if (isNaN(v)) return; // Permite borrar mientras se tipea
+        v = clamp(v, 0, 10);
+        if (t === 'm') S.data.m[i] = v; else S.data.mo[i] = v;
+        save();
+        if (chM) { chM.data.datasets[0].data = [...S.data.m]; chM.data.datasets[1].data = [...S.data.mo]; chM.update(); }
+    });
+    document.getElementById('mTbl').addEventListener('change', function(e) {
+        if (!e.target.classList.contains('minp')) return;
+        let v = parseInt(e.target.value);
+        if (isNaN(v)) v = 0;
+        v = clamp(v, 0, 10);
+        e.target.value = v;
+        const t = e.target.dataset.t; const i = parseInt(e.target.dataset.i);
+        if (t === 'm') S.data.m[i] = v; else S.data.mo[i] = v;
+        save(); uFast();
+    });
+    document.getElementById('iYear').addEventListener('change', function() { const y = parseInt(this.value); if (!isNaN(y) && y >= 2020 && y <= 2100) { S.year = y; rAll(); } });
+    document.getElementById('iMonth').addEventListener('change', function() { S.month = parseInt(this.value); rAll(); });
+    document.getElementById('bReset').addEventListener('click', function() { document.getElementById('rModal').classList.remove('hidden'); });
+    document.getElementById('rNo').addEventListener('click', function() { document.getElementById('rModal').classList.add('hidden'); });
+    document.getElementById('rYes').addEventListener('click', function() {
+        S.data = defData(dim(S.year, S.month)); save(); rAll();
+        document.getElementById('rModal').classList.add('hidden');
+        toast('Mes reseteado correctamente', '#ef4444');
+    });
+    document.getElementById('rModal').addEventListener('click', function(e) { if (e.target === this) this.classList.add('hidden'); });
+    document.getElementById('bExport').addEventListener('click', expCSV);
+    document.getElementById('bImport').addEventListener('click', function() { document.getElementById('fInput').click(); });
+    document.getElementById('fInput').addEventListener('change', impCSV);
+}
+
+function expCSV() {
+    const d = dim(S.year, S.month); const rows = [];
+    rows.push(['hábito', ...Array.from({ length: d }, (_, i) => i + 1)].join(','));
+    HABITS.forEach((hb, hi) => { rows.push(['"' + hb.e + ' ' + hb.n + '"', ...S.data.h[hi].map(v => v ? 1 : 0)].join(',')); });
+    rows.push(['Ánimo', ...S.data.m].join(',')); rows.push(['Motivación', ...S.data.mo].join(','));
+    const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'tracker_' + S.year + '_' + MES[S.month] + '.csv';
+    a.click(); URL.revokeObjectURL(a.href); toast('CSV exportado con éxito', '#22c55e');
+}
+
+function impCSV(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            const lines = evt.target.result.split('\n').filter(l => l.trim());
+            const d = dim(S.year, S.month); const nd = defData(d);
+            lines.forEach((line, li) => {
+                if (li === 0) return;
+                const parts = line.split(','); const label = parts[0].replace(/"/g, '').trim();
+                const hi = HABITS.findIndex(h => label.includes(h.n));
+                if (hi >= 0) { for (let j = 0; j < d; j++) nd.h[hi][j] = !!parseInt(parts[j + 1]); return; }
+                if (label.toLowerCase().includes('ánimo') || label.toLowerCase().includes('animo')) { for (let j = 0; j < d; j++) nd.m[j] = clamp(parseInt(parts[j + 1]) || 0, 0, 10); return; }
+                if (label.toLowerCase().includes('motiv')) { for (let j = 0; j < d; j++) nd.mo[j] = clamp(parseInt(parts[j + 1]) || 0, 0, 10); return; }
+            });
+            S.data = nd; save(); rAll(); toast('CSV importado', '#22c55e');
+        } catch (err) { toast('Error al importar archivo', '#ef4444'); }
+        e.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
+function toast(msg, col) {
+    const old = document.querySelector('.toast'); if (old) old.remove();
+    const t = document.createElement('div'); t.className = 'toast';
+    t.style.background = col + '20'; t.style.color = col; t.style.border = '1px solid ' + col + '66'; t.style.backdropFilter = 'blur(8px)';
+    t.textContent = msg; document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(10px)'; t.style.transition = 'all 0.4s'; setTimeout(() => t.remove(), 400); }, 3000);
+}
+
+function init() {
+    const sel = document.getElementById('iMonth');
+    MES.forEach((n, i) => { const o = document.createElement('option'); o.value = i; o.textContent = n; sel.appendChild(o); });
+    initEvents(); rAll();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
